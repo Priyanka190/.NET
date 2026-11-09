@@ -1,0 +1,251 @@
+﻿@page "/students"
+@rendermode InteractiveServer
+
+@using Component.Model
+@using Component.Services
+@using Microsoft.FluentUI.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@inject IDialogService DialogService
+
+
+
+@inject IStudentServices StudentServices
+
+<h3>Students Management</h3>
+
+<FluentCard Style="margin-top:5%">
+    <div style="width:100%; display:flex; justify-content:space-between">
+
+        <FluentButton Style="width:50%" @onclick="addformVisible">
+            Add
+        </FluentButton>
+
+        <FluentButton Style="width:50%" @onclick="listVisible">
+            List of Students
+        </FluentButton>
+
+    </div>
+</FluentCard>
+
+<div style="margin-top:5%">
+
+    @if (listVisble)
+    {
+        <FluentDataGrid Items="@students.AsQueryable()" Style="width:100%">
+            <div style="display: flex;">
+                <TemplateColumn Title="Name">
+                    @context.FirstName @context.LastName
+                </TemplateColumn>
+                <TemplateColumn Title="E-mail">
+                    <div style="display: flex; justify-content:space-between; width:100%">
+                        @context.Email
+                        <div style="display: flex;"">
+                            <FluentButton @onclick="() => EditformVisible(context)">Edit</FluentButton>
+                            <FluentButton  @onclick="() => deleteform(context)">Delete</FluentButton>
+                        </div>
+                    </div>
+                </TemplateColumn>
+            </div>
+
+
+
+        </FluentDataGrid>
+    }
+
+    @if (addForm)
+    {
+        <FluentCard Style="margin-top:20px;padding:20px;">
+
+            <EditForm Model="@newStudent" OnValidSubmit="AddStudent">
+                <DataAnnotationsValidator />
+                <div style="display:flex; align-items:end; gap:10px; width:100%;">
+                    <ValidationSummary />
+                    <FluentTextInput Label="FirstName" @bind-Value="newStudent.FirstName" />
+                    <FluentTextInput Label="LastName" @bind-Value="newStudent.LastName" />
+                    <FluentTextInput Label="Email" @bind-Value="newStudent.Email" />
+                    <FluentButton Type="@ButtonType.Submit" style="height:35px; min-width:120px; margin-left: auto;">
+                        Save
+                    </FluentButton>
+                </div>
+
+            </EditForm>
+
+        </FluentCard>
+    }
+
+</div>
+
+@if (isEdit)
+{
+    <div style="
+        position:fixed;
+        top:50%;
+        left:50%;
+        transform:translate(-50%,-50%);
+        border-radius:10px;
+        z-index:1000;
+        min-width:400px;
+        max-width:500px;">
+
+        <FluentCard>
+            <FluentDialogBody>
+                <EditForm Model="@editStudent" OnValidSubmit="EditStudent">
+                    <DataAnnotationsValidator />
+                    <p style="text-align:center;">
+                        Modify Student
+                    </p>
+                    <div style="display:flex; gap:10px; margin-bottom:15px;">
+                         <FluentTextField Label="Id"
+                                     Value="@editStudent.Id.ToString()"
+                                     ReadOnly="true" />
+                        <FluentTextInput Label="First Name" @bind-Value="editStudent.FirstName" />
+
+                        <FluentTextInput Label="Last Name" @bind-Value="editStudent.LastName" />
+
+                        <FluentTextInput Label="Email" @bind-Value="editStudent.Email" />
+
+                    </div>
+
+                    <div style="display:flex; justify-content:center;">
+                        <FluentButton Type="@ButtonType.Submit">
+                            Save
+                        </FluentButton>
+                        <FluentButton OnClick="Cancel">
+                            Cancel
+                        </FluentButton>
+                    </div>
+
+                </EditForm>
+            </FluentDialogBody>
+        </FluentCard>
+    </div>
+}
+@if (isExit)
+{
+    <div style="
+        position:fixed;
+        top:50%;
+        left:50%;
+        transform:translate(-50%,-50%);
+        border-radius:10px;
+        z-index:1000;
+        min-width:400px;
+        max-width:500px;">
+
+        <FluentCard>
+            <FluentDialogBody>
+                <EditForm Model="@editStudent">
+                    <DataAnnotationsValidator />
+                    <p style="text-align:center;">
+                        Delete Student
+                    </p>
+                    <p style="text-align: center;">Are you sure you want to delete??</p>
+
+                    <div style="display:flex; justify-content:center;">
+                        <FluentButton onclick="deleteStudent">
+                            Yes
+                        </FluentButton>
+                        <FluentButton OnClick="Exit">
+                            NO
+                        </FluentButton>
+                    </div>
+
+                </EditForm>
+            </FluentDialogBody>
+        </FluentCard>
+    </div>
+}
+
+
+@code {
+
+    private List<Student> students = new();
+
+    private string message = string.Empty;
+
+    private bool addForm;
+
+    private bool listVisble;
+    private bool isEdit;
+    private bool isExit;
+
+    private Student newStudent = new();
+    private Student editStudent = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        students = await StudentServices.GetAllAsync();
+    }
+    private void addformVisible()
+    {
+        addForm = !addForm;
+        listVisble = false;
+    }
+    private void Cancel()
+    {
+        isEdit = false;
+    }
+    private void Exit()
+    {
+        isExit = false;
+    }
+
+    private void listVisible()
+    {
+        listVisble = !listVisble;
+        addForm = false;
+    }
+
+    private async Task AddStudent()
+    {
+        await StudentServices.AddAsync(newStudent);
+
+        students = await StudentServices.GetAllAsync();
+
+        newStudent = new Student();
+
+        addForm = false;
+    }
+
+    private void EditformVisible(Student student)
+    {
+        editStudent = new Student
+        {
+            Id = student.Id,
+            FirstName = student.FirstName,
+            LastName = student.LastName,
+            Email = student.Email
+        };
+
+        isEdit = true;
+    }
+    private async Task deleteform(Student student)
+    {
+        editStudent=student;
+       isExit=true;
+    }
+    private async Task deleteStudent()
+    {
+        await StudentServices.DeleteAsync(editStudent.Id);
+        students = await StudentServices.GetAllAsync();
+
+        isExit = false;
+
+        StateHasChanged();
+    }
+    private async Task EditStudent()
+    {
+        var existingStudent = await StudentServices.GetByIdAsync(editStudent.Id);
+
+        if (existingStudent != null)
+        {
+            existingStudent.FirstName = editStudent.FirstName;
+            existingStudent.LastName = editStudent.LastName;
+            existingStudent.Email = editStudent.Email;
+
+            await StudentServices.UpdateAsync(existingStudent);
+        
+        }
+    }
+}
